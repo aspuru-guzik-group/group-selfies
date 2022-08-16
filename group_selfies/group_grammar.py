@@ -1,0 +1,261 @@
+from rdkit import Chem
+from group_selfies.group_mol_graph import MolecularGraph, Group, GroupWrapper
+from group_selfies.constants import INDEX_ALPHABET, POP_SYMBOL, INDEX_CODE
+from copy import deepcopy
+import numpy as np
+from itertools import chain
+import itertools
+
+from group_selfies.utils.group_utils import extract_group_bonds
+
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Try backported to PY<37 `importlib_resources`.
+    import importlib_resources as pkg_resources
+
+import group_selfies
+essential = pkg_resources.open_text(group_selfies, 'essential_set.txt')
+cached_essential = None
+rng = np.random.default_rng()
+
+# def name_to_token(name):
+#     return f'[:{name}]'
+
+def name_to_token(name, n_points):
+    return [f'[:{"".join(map(str, bond_type))}{name}]' for bond_type in itertools.product(['', '=', '#'], range(n_points))]
+
+def token_to_name(token):
+    return token[2:-1]
+
+def _compatible(match, mapped_atoms, group_mol, mol):
+    """Helper method for extract_groups()"""
+
+    match_dict = dict(match)
+
+    for outer, inner in match:
+        if outer in mapped_atoms:
+            return False
+
+    for outer in match_dict.keys():
+        for x in mol.GetAtomWithIdx(outer).GetNeighbors():
+            x = x.GetIdx()
+            if x not in match_dict:
+                continue
+            bond1 = mol.GetBondBetweenAtoms(outer, x)
+            bond2 = group_mol.GetBondBetweenAtoms(match_dict[outer], match_dict[x])
+            if bond2 is None:
+                return False
+            if bond1.GetBondDir() != bond2.GetBondDir():
+                return False
+    return True
+
+class GroupGrammar:
+    def __init__(self, vocab=None):
+        if vocab is None:
+            self.vocab = dict()
+        else:
+            self.vocab = vocab
+
+    @classmethod
+    def from_list(cls, l):
+        vocab_dict = dict([(n, Group(n, s, all_attachment=all_at, priority=priority[0] if len(priority) else 0)) for n, s, all_at, *priority in l])
+        return cls(vocab=vocab_dict)
+
+    @classmethod
+    def from_file(cls, filename):
+        test_gs = [l.strip().split(' ') for l in open(filename)]
+        vocab_dict = dict([(n, Group(n, s, priority=int(priority[0]) if len(priority) else 0)) for n, s, *priority in test_gs])
+        return cls(vocab=vocab_dict)
+
+    @classmethod
+    def essential_set(cls):
+        global cached_essential
+        if cached_essential:
+            return cached_essential
+        
+        test_gs = [l.strip().split(' ') for l in essential]
+        vocab_dict = dict([(n, Group(n, s, priority=int(priority[0]) if len(priority) else 0)) for n, s, *priority in test_gs])
+        cached_essential = cls(vocab=vocab_dict)
+        return cached_essential
+
+    def to_file(self, filename):
+        open(filename, 'w').write('\n'.join([' '.join([n, group.canonsmiles, str(group.priority)]) for n, group in self.vocab.items()]))
+
+    def names_sorted_by_size(self):
+        """Returns the names of all groups, sorted by num_atoms, from highest to lowest"""
+        names = list(self.vocab.keys())
+        group_sizes = []
+        for name in names:
+            group_sizes.append(self.vocab[name].group_size)
+
+        return sorted(names, reverse=True, key=lambda x: (self.vocab[x].priority, self.vocab[x].group_size))
+    
+    def extract_groups(self, mol):
+        """Finds groups in <self.group_vocabulary> that are in <mol> in a greedy way. It tries to 
+        replace the largest groups first before moving onto smaller groups.
+
+        Returns a list of (group_object, atom_idxs, bond idx tuples)"""
+        mapped_atoms = set()
+        groups = []
+        Chem.Kekulize(mol, clearAromaticFlags=True)
+        mol.UpdatePropertyCache()
+        for name in self.names_sorted_by_size():
+            group = self.get_group(name)
+            for matched_atoms, matched_bonds in extract_group_bonds(group, mol, mapped_atoms):
+                match, _ = zip(*matched_atoms)
+                if _compatible(matched_atoms, mapped_atoms, group.mol, mol):
+                    groups.append((self.get_group(name), matched_atoms, matched_bonds))
+                    mapped_atoms.update(match)
+        return groups
+
+    def all_tokens(self):
+        return list(chain.from_iterable([name_to_token(name, len(group.attachment_points)) for name, group in self.vocab.items()]))
+
+    def add_group(self, name, canonsmi, overload_index=None):
+        """Adds a group to the group dictionary.
+
+        The name will be the name in the group token, and the SMILES
+        is used to generate the RDkit mol that represents the Group object.
+
+        It is okay to have multiple names for the same group.
+
+        Precondition: `name` is not in the group dictionary"""
+        name = name.replace('[', '(').replace(']', ')')
+
+        if name in self.vocab:
+            # print(f'{name} is already in the group dictionary')
+            return False
+
+        # canonsmi = Chem.CanonSmiles(smi)
+
+        # mol = Chem.MolFromSmiles(canonsmi)
+
+        group = Group(name, canonsmi)#, mol, overload_index)
+
+        self.vocab[name] = group
+
+        return True
+    
+    def edit_group(self, name, smi, overload_index=None):
+        """Gets the group with name `name` and sets its SMILES/group object to `smi`
+        and sets its overload_index to `overload_index`. If not provided, then
+        keep the old overload_index.
+        
+        Precondition: `name` is in this grammar.
+        """
+        name = name.replace('[', '(').replace(']', ')')
+        assert name in self.vocab
+
+        old_overload_index = self.vocab[name].overload_index
+
+        canonsmi = Chem.CanonSmiles(smi)
+
+        mol = Chem.MolFromSmiles(canonsmi)
+
+        if overload_index is None:
+            group = Group(name, canonsmi, mol, old_overload_index)
+        else:
+            group = Group(name, canonsmi, mol, overload_index)
+
+        self.vocab[name] = group
+
+    def delete_group(self, name):
+        """Deletes the group with name `name`
+        
+        Precondition: `name` is in this grammar.
+        """
+        self.vocab.pop(name, None)
+
+
+    def get_group(self, name):
+        """Obtains a fresh copy of a Group object given its name."""
+        return GroupWrapper(self.vocab[name])
+        # return deepcopy(self.vocab[name])
+
+    def encoder(self, mol, groups, **args):
+        from group_selfies.group_encoder import group_encoder
+        return group_encoder(self, mol, groups, **args)
+
+    def decoder(self, selfies, **args):
+        from group_selfies.group_decoder import group_decoder
+        return group_decoder(self, selfies, **args)
+
+    def full_encoder(self, mol, **args):
+        from group_selfies.group_encoder import group_encoder
+        groups = self.extract_groups(mol)
+        return group_encoder(self, mol, groups, **args)
+
+    def get_group_selfies_from_index(self, index):
+        # return self.group_selfies_index_alphabet[index]
+        pass
+
+    def read_index_from_group_selfies(self, symbol_iter):
+        try:
+            symbol = next(symbol_iter)
+            if symbol == POP_SYMBOL:
+                return None
+            if symbol in INDEX_CODE:
+                return INDEX_CODE[symbol]
+            else:
+                name = token_to_name(symbol)
+                if name in self.vocab:
+                    return self.vocab[name].overload_index
+                else:
+                    return 0
+        except StopIteration:
+            return None
+    
+    def get_index_from_selfies(self, symbol):
+        if symbol in INDEX_CODE:
+            return INDEX_CODE[symbol]
+        else:
+            name = token_to_name(symbol)
+            if name in self.vocab:
+                return self.vocab[name].overload_index
+            else:
+                return 0
+
+    def merge(self, other):
+        return GroupGrammar(vocab={**self.vocab, **other.vocab})
+
+    def __or__(self, other):
+        return self.merge(other)
+
+
+def common_r_group_replacements_grammar(num_groups=None, rng=rng):
+    """Loads ~377 common R groups from GlobalChem into the group dictionary."""
+    from global_chem import GlobalChem
+    gc = GlobalChem()
+    gc.build_global_chem_network(print_output=False, debugger=False)
+    # node = gc.get_all_nodes()[10] #get_node('common_r_group_replacements')['node_value']
+    smiles_dict = gc.get_all_nodes()[10].get_smiles()
+    named_groups = []
+
+    from rdkit import RDLogger
+    RDLogger.DisableLog('rdApp.*')
+    if num_groups is None:
+        for name, smi in smiles_dict.items():
+            mol = Chem.MolFromSmiles(smi)
+            name = name.replace('[', '(').replace(']', ')')
+            if mol is not None and mol.GetNumAtoms() > 1:
+                named_groups.append([name, smi])
+    else:
+        count = 0
+        items = list(smiles_dict.items())
+        rng.shuffle(items)
+        for name, smi in items:
+            mol = Chem.MolFromSmiles(smi)
+            name = name.replace('[', '(').replace(']', ')')
+            if mol is not None and mol.GetNumAtoms() > 1:
+                named_groups.append([name, smi])
+                count += 1
+                if count == num_groups:
+                    break
+    RDLogger.EnableLog('rdApp.*')
+
+    grammar = GroupGrammar()
+    for name, smi in named_groups:
+        grammar.add_group(name, smi)
+
+    return grammar

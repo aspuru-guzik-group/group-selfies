@@ -1,0 +1,5 @@
+trifluoromethane *1C(F)(F)F 0
+pyrazole N1=C(*1)-C(*1)=C(*1)-N-1*1 0
+toluene C-C1=C(*1)-C(*1)=C(*1)-C(*1)=C-1*1 0
+chiral *x1[C@](*x1)(*x1)(*1) 10
+chiral2 *x1[C@H](*x1)(*x1) 10
