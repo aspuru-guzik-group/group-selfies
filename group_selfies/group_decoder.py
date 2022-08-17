@@ -8,10 +8,33 @@ from group_selfies.grammar_rules import (
     get_index_from_selfies,
     process_atom_symbol
 )
-from group_selfies.decoder import (
-    _tokenize_selfies,
-    _raise_decoder_error,
-)
+
+class DecoderError(Exception):
+    pass
+
+from group_selfies.utils.selfies_utils import split_selfies
+def _tokenize_selfies(selfies):
+    if isinstance(selfies, str):
+        symbol_iter = split_selfies(selfies)
+    elif isinstance(selfies, list):
+        symbol_iter = selfies
+    else:
+        raise ValueError()  # should not happen
+
+    try:
+        for symbol in symbol_iter:
+            if symbol == "[nop]":
+                continue
+            yield symbol
+    except ValueError as err:
+        raise DecoderError(str(err)) from None
+
+def _raise_decoder_error(selfies, invalid_symbol):
+    err_msg = "invalid symbol '{}'\n\tSELFIES: {}".format(
+        invalid_symbol, selfies
+    )
+    raise DecoderError(err_msg)
+
 from group_selfies.group_mol_graph import Atom, MolecularGraph
 import re
 from rdkit import Chem, RDLogger
