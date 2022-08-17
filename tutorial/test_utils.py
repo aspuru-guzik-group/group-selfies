@@ -8,8 +8,7 @@ from PIL import Image
 def mol_with_atom_index(mol):
     mol_c = Chem.Mol(mol)
     for atom in mol_c.GetAtoms():
-        # print(atom.GetIdx())
-        atom.SetProp('_displayLabel', f'{atom.GetSymbol()}:{atom.GetIdx()}{(":"+ str(atom.GetIntProp("valAvailable"))) if atom.HasProp("valAvailable") else ""}')
+        atom.SetProp("atomNote", str(atom.GetIdx()))
     return mol_c
 
 # S = 'CCC1CCCCC1'
