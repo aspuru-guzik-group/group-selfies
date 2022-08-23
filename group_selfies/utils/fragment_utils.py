@@ -1,4 +1,5 @@
 from group_selfies.utils.group_utils import hash_molecule, HashableMolecule, mol_to_group_s, bond_to_order, get_core
+from group_selfies.bond_constraints import get_bonding_capacity
 from collections import defaultdict
 from tqdm import tqdm
 
@@ -8,6 +9,7 @@ from rdkit.Chem.rdchem import BondType as BT
 
 from rdkit.Chem import rdMMPA
 from rdkit.Chem.Fraggle import FraggleSim
+import math
 
 aliases = {'default': ['default'],
             'mmpa': ['mmpa'],
@@ -62,7 +64,7 @@ def fragment_mol(m, MIN_SIZE=4, method='default'): # fragment a molecule based o
 def get_attachment_points(atom):
     return [neigh.GetIntProp('valAvailable') for neigh in atom.GetNeighbors() if neigh.HasProp('valAvailable')]
 
-def merge_list(L1, L2): 
+def merge_list(L1, L2, limit=math.inf): 
     # merge two lists optimally? based on the following rules:
     # sum of values in merged list <= maximum sum of the initial lists
     # can merge v1 in L1 and v2 in L2 as max(v1, v2)
@@ -78,10 +80,20 @@ def merge_list(L1, L2):
     else:
         merged = [max(l1, l2) for l1, l2 in zip(L1, L2)]
     
-    if sum(merged) <= max(sum(L1), sum(L2)):
+    if sum(merged) <= min(max(sum(L1), sum(L2)), limit):
         return merged
     return None
-    
+
+
+def capacity(atom):
+    if atom.GetSymbol() == '*':
+        return 0
+    explicit_valence = atom.GetExplicitValence()
+    for neigh in atom.GetNeighbors():
+        if neigh.GetSymbol() == '*':
+            explicit_valence -= atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), neigh.GetIdx()).GetValenceContrib(atom)
+    return get_bonding_capacity(atom.GetSymbol(), atom.GetFormalCharge()) - explicit_valence
+       
 
 ### NOTE: merging destroys ordering and might not give expected chirality!
 def merge_patterns(p1, p2, core): #return None if not mergeable, else return merged
@@ -95,11 +107,11 @@ def merge_patterns(p1, p2, core): #return None if not mergeable, else return mer
         modified_pattern.BeginBatchEdit()
         for core_idx, (c_idx, m_idx) in enumerate(zip(canon_mapping, match_mapping)):
             # get attachment points at these indices
-            c_attach = get_attachment_points(p1.GetAtomWithIdx(c_idx)) 
-            m_attach = get_attachment_points(p2.GetAtomWithIdx(m_idx))
+            c_attach = get_attachment_points(a1 := p1.GetAtomWithIdx(c_idx)) 
+            m_attach = get_attachment_points(a2 := p2.GetAtomWithIdx(m_idx))
             
             # merge (if possible)
-            if (res := merge_list(c_attach, m_attach)) is not None:
+            if (res := merge_list(c_attach, m_attach, limit=min(capacity(a1), capacity(a2)))) is not None:
                 intersections += min(len(c_attach), len(m_attach))
                 
                 # make edits to core to create merged pattern
