@@ -8,6 +8,7 @@ from rdkit.Chem.Draw import rdMolDraw2D
 from group_selfies.utils.group_utils import group_parser, mol_to_group_s, pattern_parser, to_smarts, raw_smarts_to_pattern
 from collections import defaultdict
 from group_selfies.constants import BOND_DIR_REV
+import re
 
 class Atom:
     """An atom with associated specifications (e.g. element, isotope, h_count, charge). No chirality for now...
@@ -113,7 +114,7 @@ class MolecularGraph:
                     )
                 self.add_atom(atom_obj)
             
-            bond_to_order = {BT.ZERO: 0, BT.SINGLE: 1, BT.DOUBLE: 2, BT.TRIPLE: 3} # add zero order bond so attachment doesnt count to valency
+            bond_to_order = {BT.ZERO: 0, BT.SINGLE: 1, BT.DOUBLE: 2, BT.TRIPLE: 3, BT.QUADRUPLE: 4} # add zero order bond so attachment doesnt count to valency
             for bond in mol.GetBonds():
                 src, dst = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
                 self.add_bond(src, dst, bond_to_order[bond.GetBondType()], BOND_DIR_REV[bond.GetBondDir()], update_bond_counts=(bond.GetBeginAtom().GetAtomicNum() and bond.GetEndAtom().GetAtomicNum()))
@@ -283,9 +284,12 @@ class MolecularGraph:
     def get_atom_pos(self, atom_idx):
         return self[atom_idx].pos
         
-order_to_bond = [BT.ZERO, BT.SINGLE, BT.DOUBLE, BT.TRIPLE]
+order_to_bond = [BT.ZERO, BT.SINGLE, BT.DOUBLE, BT.TRIPLE, BT.QUADRUPLE]
 class Group:
-    def __init__(self, name, canonsmiles, overload_index=None, all_attachment=False, smarts_override=None, priority=0, sanitize=False):
+    def __init__(self, name, canonsmiles, overload_index=None, all_attachment=False, smarts_override=None, priority=0, sanitize=False): 
+        assert '-' not in name, "Group names cannot contain dashes"
+        assert re.match(r'[0-9]+', name) is None, "Group names cannot start with numbers"
+
         self.matched = False
         self.index = None
         self.name = name
