@@ -6,7 +6,8 @@ from group_selfies.grammar_rules import (
     process_branch_symbol,
     process_ring_symbol,
     get_index_from_selfies,
-    process_atom_symbol
+    process_atom_symbol,
+    bond_char_to_order
 )
 
 class DecoderError(Exception):
