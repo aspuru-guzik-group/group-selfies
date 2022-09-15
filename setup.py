@@ -10,7 +10,7 @@ setuptools.setup(
     version="1.0.0",
     author="Austin Cheng, Andy Cai, Mario Krenn, Alston Lo, and many other contributors",
     author_email="austin.cheng@mail.utoronto.ca, alan@aspuru.com",
-    description="Group SELFIES incorporates group tokens which represent functional groups or entire substructures into SELFIES while maintaining robustness."
+    description="Group SELFIES incorporates group tokens which represent functional groups or entire substructures into SELFIES while maintaining robustness.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/aspuru-guzik-group/group-selfies",
