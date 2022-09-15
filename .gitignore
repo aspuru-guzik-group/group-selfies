@@ -147,28 +147,5 @@ error_logs/
 sandbox
 version.smi.gz
 .vscode/settings.json
-experiments/old/essential_set.txt
-experiments/old/length_histogram.ipynb
-experiments/old/nfa_vocab_fragment.pkl
-experiments/old/parallel.py
-experiments/old/randomized_selfies_NFA_paper.ipynb
-experiments/old/randomized_selfies_NFA.ipynb
-experiments/old/randomized_selfies_zinc_paper copy 2.ipynb
-experiments/old/randomized_selfies_zinc_paper copy 3.ipynb
-experiments/old/randomized_selfies_zinc_paper copy 4.ipynb
-experiments/old/randomized_selfies_zinc_paper copy.ipynb
-experiments/old/randomized_selfies_zinc_paper.ipynb
-experiments/old/randomized_selfies_zinc.ipynb
-experiments/old/randomized_zinc.py
-experiments/old/save
-experiments/old/test
-experiments/old/test.py
-experiments/old/vocab_fragment.pkl
-experiments/old/zinc_gen_gselfi.svg
-experiments/old/zinc_gen_selfi.svg
-experiments/old/zinc_groups.svg
-experiments/old/zinc_test_grammar_1.txt
-experiments/old/zinc_test_grammar_2.txt
-experiments/old/zinc_test_grammar.txt
-experiments/old/zinc_vocab_fragment.pkl
+experiments/old/*
 *.DS_Store

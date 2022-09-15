@@ -7,15 +7,13 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="group_selfies",
-    version="2.0.0",
-    author="Mario Krenn, Alston Lo, and many other contributors",
-    author_email="mario.krenn@utoronto.ca, alan@aspuru.com",
-    description="SELFIES (SELF-referencIng Embedded Strings) is a "
-                "general-purpose, sequence-based, robust representation of "
-                "semantically constrained graphs.",
+    version="1.0.0",
+    author="Austin Cheng, Andy Cai, Mario Krenn, Alston Lo, and many other contributors",
+    author_email="austin.cheng@mail.utoronto.ca, alan@aspuru.com",
+    description="Group SELFIES incorporates group tokens which represent functional groups or entire substructures into SELFIES while maintaining robustness."
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/aspuru-guzik-group/selfies",
+    url="https://github.com/aspuru-guzik-group/group-selfies",
     packages=setuptools.find_packages(),
     package_data = {
         '': ['*'],
@@ -34,6 +32,7 @@ setuptools.setup(
     python_requires='>=3.5',
     install_requires=[
         'networkx',
-        'tqdm'
+        'tqdm',
+        'rdkit',
     ]
 )
