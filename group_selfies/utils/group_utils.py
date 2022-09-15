@@ -21,38 +21,6 @@ def loginfo_mol(mol):
         for bond in mol.get_out_dirbonds(atom.index):
             loginfo('  ', bond.src, bond.dst, bond.order, bond.ring_bond)
 
-import matplotlib.pyplot as plt
-def plot_nx(nx_graph):
-    if logging.root.level <= logging.INFO:
-        plt.figure()
-        elements = nx.get_node_attributes(nx_graph, name="name")
-        for key in elements.keys():
-            elements[key] += str(key)
-        nx.draw(nx_graph, with_labels=True, labels = elements, pos=nx.spring_layout(nx_graph), connectionstyle='arc3, rad = 0.1')
-        plt.gca().set_aspect('equal')
-
-def plot_diG(nx_graph):
-    if logging.root.level <= logging.INFO:
-        plt.figure()
-        nodes = nx.get_node_attributes(nx_graph, name="node")
-        labels = dict()
-        for key in nodes.keys():
-            labels[key] = nodes[key].name + str(key)
-        nx.draw(nx_graph, with_labels=True, labels = labels, pos=nx.spring_layout(nx_graph), connectionstyle='arc3, rad = 0.1')
-        plt.gca().set_aspect('equal')
-
-def loginfo_diG(diG):
-    loginfo('\n\n\n')
-    loginfo('NODES')
-    for no in list(map(lambda x: x[-1]['node'], diG.nodes.data())):
-        loginfo(' ',no)
-        if no.group_obj:
-            loginfo(no.group_obj)
-    loginfo('EDGES')
-    for ed in list(map(lambda x: x[-1]['edge'], diG.edges.data())):
-        loginfo(' ',ed)
-    plot_diG(diG)
-
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import re
