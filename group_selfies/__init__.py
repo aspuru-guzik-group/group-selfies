@@ -1,31 +1,12 @@
 #!/usr/bin/env python
 
 """
-SELFIES: a robust representation of semantically constrained graphs with an
-         example application in chemistry.
+Group SELFIES: A robust fragment-based molecular string representation
 
-SELFIES (SELF-referencIng Embedded Strings) is a general-purpose,
-sequence-based, robust representation of semantically constrained graphs.
-It is based on a Chomsky type-2 grammar, augmented with two self-referencing
-functions. A main objective is to use SELFIES as direct input into machine
-learning models, in particular in generative models, for the generation of
-outputs with high validity.
-
-The code presented here is a concrete application of SELFIES in chemistry, for
-the robust representation of molecules.
-
-    Typical usage example:
-        import selfies as sf
-
-        benzene = "C1=CC=CC=C1"
-        benzene_selfies = sf.encoder(benzene)
-        benzene_smiles = sf.decoder(benzene_selfies)
-
-For comments, bug reports or feature ideas, please send an email to
-mario.krenn@utoronto.ca and alan@aspuru.com.
+Group SELFIES is based on SELFIES, where arbitrary strings can be decoded to molecules with valid valency constraints, but includes tokens that represent entire groups, such as benzene. It is useful as input into generative models or molecular representation in genetic algorithms.
 """
 
-__version__ = "2.0.0"
+__version__ = "0.0.1"
 
 __all__ = [
     "get_preset_constraints",
@@ -35,8 +16,6 @@ __all__ = [
     "len_selfies",
     "split_selfies",
     "get_alphabet_from_selfies",
-    "EncoderError",
-    "DecoderError",
     "group_encoder",
     "group_decoder",
     "fragment_mols",
@@ -52,7 +31,6 @@ from .bond_constraints import (
 )
 from .group_decoder import group_decoder
 from .group_encoder import group_encoder
-from .exceptions import DecoderError, EncoderError
 
 from .utils.selfies_utils import (
     get_alphabet_from_selfies,

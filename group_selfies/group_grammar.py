@@ -1,7 +1,6 @@
 from rdkit import Chem
 from group_selfies.group_mol_graph import MolecularGraph, Group, GroupWrapper
 from group_selfies.constants import INDEX_ALPHABET, POP_SYMBOL, INDEX_CODE
-from copy import deepcopy
 import numpy as np
 from itertools import chain
 import itertools
@@ -18,9 +17,6 @@ import group_selfies
 essential = pkg_resources.open_text(group_selfies, 'essential_set.txt')
 cached_essential = None
 rng = np.random.default_rng()
-
-# def name_to_token(name):
-#     return f'[:{name}]'
 
 def name_to_token(name, n_points):
     return [f'[:{"".join(map(str, bond_type))}{name}]' for bond_type in itertools.product(['', '=', '#'], range(n_points))]
@@ -54,6 +50,10 @@ class GroupGrammar:
     def __init__(self, vocab=None):
         if vocab is None:
             self.vocab = dict()
+        elif type(vocab) == list:
+            self.vocab = dict()
+            for group in vocab:
+                self.vocab[group.name] = group
         else:
             self.vocab = vocab
 
@@ -112,53 +112,15 @@ class GroupGrammar:
     def all_tokens(self):
         return list(chain.from_iterable([name_to_token(name, len(group.attachment_points)) for name, group in self.vocab.items()]))
 
-    def add_group(self, name, canonsmi, overload_index=None):
-        """Adds a group to the group dictionary.
-
-        The name will be the name in the group token, and the SMILES
-        is used to generate the RDkit mol that represents the Group object.
-
-        It is okay to have multiple names for the same group.
-
-        Precondition: `name` is not in the group dictionary"""
-        name = name.replace('[', '(').replace(']', ')')
+    def add_group(self, name, canonsmiles, overload_index=None, all_attachment=False, smarts_override=None, priority=0, sanitize=False):
 
         if name in self.vocab:
-            # print(f'{name} is already in the group dictionary')
+            print(f'{name} is already in the group dictionary, skipping')
             return False
 
-        # canonsmi = Chem.CanonSmiles(smi)
-
-        # mol = Chem.MolFromSmiles(canonsmi)
-
-        group = Group(name, canonsmi)#, mol, overload_index)
-
+        group = Group(name, canonsmiles, overload_index, all_attachment, smarts_override, priority, sanitize)
         self.vocab[name] = group
-
         return True
-    
-    def edit_group(self, name, smi, overload_index=None):
-        """Gets the group with name `name` and sets its SMILES/group object to `smi`
-        and sets its overload_index to `overload_index`. If not provided, then
-        keep the old overload_index.
-        
-        Precondition: `name` is in this grammar.
-        """
-        name = name.replace('[', '(').replace(']', ')')
-        assert name in self.vocab
-
-        old_overload_index = self.vocab[name].overload_index
-
-        canonsmi = Chem.CanonSmiles(smi)
-
-        mol = Chem.MolFromSmiles(canonsmi)
-
-        if overload_index is None:
-            group = Group(name, canonsmi, mol, old_overload_index)
-        else:
-            group = Group(name, canonsmi, mol, overload_index)
-
-        self.vocab[name] = group
 
     def delete_group(self, name):
         """Deletes the group with name `name`
@@ -171,7 +133,6 @@ class GroupGrammar:
     def get_group(self, name):
         """Obtains a fresh copy of a Group object given its name."""
         return GroupWrapper(self.vocab[name])
-        # return deepcopy(self.vocab[name])
 
     def encoder(self, mol, groups, **args):
         from group_selfies.group_encoder import group_encoder
@@ -185,10 +146,9 @@ class GroupGrammar:
         from group_selfies.group_encoder import group_encoder
         groups = self.extract_groups(mol)
         return group_encoder(self, mol, groups, **args)
-
-    def get_group_selfies_from_index(self, index):
-        # return self.group_selfies_index_alphabet[index]
-        pass
+    
+    def pretty_encode(self, gselfi, **args):
+        return self.full_encoder(Chem.MolFromSmiles(Chem.MolToSmiles(self.decoder(gselfi))), **args)
 
     def read_index_from_group_selfies(self, symbol_iter):
         try:

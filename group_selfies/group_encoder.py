@@ -126,7 +126,7 @@ def graph_to_selfies(grammar, G, previous_bond, root, counter=None, map_idx=None
 
 def atom_to_selfies(bond, atom):
     bond_char = "" if (bond is None) else (bond.direc + order2char[bond.order])
-    specs = (atom.isotope, atom.chirality, atom.h_count, atom.charge)
+    # specs = (atom.isotope, atom.chirality, atom.h_count, atom.charge)
     builder = []
     builder.append("[")
     builder.append(bond_char)
@@ -151,7 +151,6 @@ def atom_to_selfies(bond, atom):
 
     return "".join(builder)
 
-import traceback
 def group_encoder(grammar, mol, groups, join=True):
     try:
         Chem.Kekulize(mol, clearAromaticFlags=True)

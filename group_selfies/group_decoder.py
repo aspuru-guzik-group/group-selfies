@@ -39,7 +39,7 @@ def _raise_decoder_error(selfies, invalid_symbol):
 from group_selfies.group_mol_graph import Atom, MolecularGraph
 import re
 from rdkit import Chem, RDLogger
-from group_selfies.constants import ORGANIC_SUBSET, ELEMENTS, POP_SYMBOL, NEGATIVE_RING_SYMBOL, MAX_BOND_ORDER, LARGE_INT, INDEX_CODE, BOND_DIR, INVERT_DIR
+from group_selfies.constants import POP_SYMBOL, NEGATIVE_RING_SYMBOL, BOND_DIR, INVERT_DIR
 from group_selfies.bond_constraints import get_bonding_capacity
 from collections import defaultdict
 

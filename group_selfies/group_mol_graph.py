@@ -382,10 +382,10 @@ class Group:
         self.matched = True
 
     def __repr__(self):
-        s = f'{self.index} {self.name} {self.canonsmiles}'
+        s = f'{self.name} {self.canonsmiles}'
         if self.matched:
-            s += f' {self.member_idxs}'
-        return s
+            s += f' {self.index} {self.member_idxs}'
+        return f'<Group {s}>'
     
     def __len__(self):
         return len(self.attachment_points)
