@@ -9,7 +9,9 @@ from rdkit import Chem
 from tqdm import tqdm
 import pandas as pd
 import group_selfies as gs
-
+m = Chem.MolFromSmiles
+c = Chem.CanonSmiles
+s = Chem.MolToSmiles
 import multiprocessing as mp
 
 TEST_DIR = pathlib.Path(__file__).parent
@@ -29,10 +31,9 @@ def worker(in_smiles, q):
     mol = Chem.MolFromSmiles(in_smiles, sanitize=True)
     if not ((mol is None) or ("*" in in_smiles)):
         try:
-            for frag_smiles in in_smiles.split('.'):
-                check(frag_smiles)
-        except:
-            q.put(in_smiles)
+            check(in_smiles)
+        except Exception as e:
+            q.put(f'{in_smiles},{e}')
             return in_smiles
 
 def listener(q):
@@ -47,14 +48,35 @@ def listener(q):
             f.flush()
 
 grammar = gs.GroupGrammar.essential_set()
+grammar.add_group('phosphine8', '*x1[P@+](*x1)(*x1)*x1', 10)
+grammar.add_group('silicon', '*x1[Si@H](*x1)(*x1)', 10)
+grammar.add_group('silicon2', '*x1[Si@](*x1)(*x1)*x1', 15)
+grammar.add_group('phosphine9', '*x1[P@-](*x1)*x1', 10)
+
 def check(smi):
-    smi = Chem.MolToSmiles(Chem.MolFromSmiles(smi), isomericSmiles=False)
+    # prepare smiles:
     mol = Chem.MolFromSmiles(smi)
-    Chem.Kekulize(mol)
-    selfi = grammar.full_encoder(mol)
-    new_mol = grammar.decoder(selfi)
-    new_smi = Chem.MolToSmiles(new_mol)
-    assert Chem.CanonSmiles(smi) == Chem.CanonSmiles(new_smi)
+    for atom in mol.GetAtoms():
+        atom.SetAtomMapNum(0)
+    smi = Chem.CanonSmiles(Chem.MolToSmiles(mol))
+    retry = []
+    for frag_smi in smi.split('.'):
+        mol = Chem.MolFromSmiles(frag_smi)
+        gselfi = grammar.full_encoder(mol)
+        new_mol = grammar.decoder(gselfi)
+        new_smi = Chem.MolToSmiles(new_mol)
+        old_smi = Chem.CanonSmiles(frag_smi)
+        new_smi = Chem.CanonSmiles(new_smi)
+        if old_smi != new_smi:
+            new_new_smi = Chem.CanonSmiles(new_smi)
+            if old_smi != new_new_smi:
+                retry.append((mol, gselfi))
+    
+    for mol, gselfi in retry:
+        for _ in range(50):
+            if c(s(grammar.decoder(gselfi), doRandom=True)) == c(s(mol, doRandom=True)):
+                return
+        raise ValueError(f"Failed to roundtrip {smi}")
 
 def roundtrip_translation():
     constraints = gs.get_preset_constraints("hypervalent")
