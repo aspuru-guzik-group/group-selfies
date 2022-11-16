@@ -226,6 +226,9 @@ def common_r_group_replacements_grammar(num_groups=None, rng=rng):
 
     grammar = GroupGrammar()
     for name, smi in named_groups:
-        grammar.add_group(name, smi, all_attachment=True)
+        try:
+            grammar.add_group(name, smi, all_attachment=True)
+        except:
+            print("couldn't add group, skipping", name, smi)
 
     return grammar
