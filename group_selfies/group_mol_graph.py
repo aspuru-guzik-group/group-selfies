@@ -325,7 +325,8 @@ class Group:
                 for idx in range(counter):
                     # print('CUR CHECK IDX', idx)
                     if temp_graph[idx].available_bonds():
-                        if (z := (temp_graph[idx].available_bonds() -  parent_map[idx])) > 0:
+                        z = min((temp_graph[idx].available_bonds() -  parent_map[idx]), len(order_to_bond)-1)
+                        if z > 0:
                             new_at = AllChem.Atom('*')
                             new_at.SetAtomMapNum(z)
                             new_at.SetIsotope(attachment_idx)

@@ -34,5 +34,6 @@ setuptools.setup(
         'networkx',
         'tqdm',
         'rdkit',
+        'global_chem',
     ]
 )

@@ -184,7 +184,12 @@ class GroupGrammar:
 
 
 def common_r_group_replacements_grammar(num_groups=None, rng=rng):
-    """Loads ~377 common R groups from GlobalChem into the group dictionary."""
+    """Creates a grammar with ~377 common R groups from GlobalChem.
+    
+    If num_groups is not None, then selects a random subset of that size.
+    You can pass your own numpy rng to set the random seed.
+    
+    """
     from global_chem import GlobalChem
     gc = GlobalChem()
     gc.build_global_chem_network(print_output=False, debugger=False)
@@ -197,7 +202,10 @@ def common_r_group_replacements_grammar(num_groups=None, rng=rng):
     if num_groups is None:
         for name, smi in smiles_dict.items():
             mol = Chem.MolFromSmiles(smi)
-            name = name.replace('[', '(').replace(']', ')')
+            name = name.replace('[', '(').replace(']', ')').replace('-','')
+            if name[0].isdigit():
+                name = ';' + name
+
             if mol is not None and mol.GetNumAtoms() > 1:
                 named_groups.append([name, smi])
     else:
@@ -206,7 +214,9 @@ def common_r_group_replacements_grammar(num_groups=None, rng=rng):
         rng.shuffle(items)
         for name, smi in items:
             mol = Chem.MolFromSmiles(smi)
-            name = name.replace('[', '(').replace(']', ')')
+            name = name.replace('[', '(').replace(']', ')').replace('-','')
+            if name[0].isdigit():
+                name = ';' + name
             if mol is not None and mol.GetNumAtoms() > 1:
                 named_groups.append([name, smi])
                 count += 1
@@ -216,6 +226,6 @@ def common_r_group_replacements_grammar(num_groups=None, rng=rng):
 
     grammar = GroupGrammar()
     for name, smi in named_groups:
-        grammar.add_group(name, smi)
+        grammar.add_group(name, smi, all_attachment=True)
 
     return grammar
