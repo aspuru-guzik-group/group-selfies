@@ -403,6 +403,16 @@ class Group:
         attach = self.mol.GetAtomWithIdx(self.attachment_points[global_idx])
         assert attach.HasProp('valAvailable'), 'Not an attachment point'
         return attach.GetIntProp('valAvailable')
+    
+    def mol_without_attachment_points(self):
+        to_remove = []
+        new_mol = Chem.RWMol(self.mol)
+        for idx, atom in enumerate(new_mol.GetAtoms()):
+            if atom.GetSymbol() == '*':
+                to_remove.append(idx)
+        for idx in reversed(to_remove):
+            new_mol.RemoveAtom(idx)
+        return new_mol
 
 class GroupWrapper:
     def __init__(self, group):
