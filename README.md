@@ -1,4 +1,5 @@
 # Group SELFIES
+https://arxiv.org/abs/2211.13322
 
 ## Installation
 Python >= 3.8 is required.
