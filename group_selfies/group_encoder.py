@@ -86,6 +86,9 @@ def graph_to_selfies(grammar, G, previous_bond, root, counter=None, map_idx=None
             # take care of the previous bond into this group node
             inner_idx = group_obj.find_next_available(previous_bond.group_idx_dict[group_obj.index], 0) if previous_bond is not None else 0
 
+            if inner_idx is None:
+                inner_idx = 0
+
             if previous_bond is None:
                 order = 1
                 direc = ''
