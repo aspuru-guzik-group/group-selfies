@@ -39,11 +39,11 @@ def _raise_decoder_error(selfies, invalid_symbol):
 from group_selfies.group_mol_graph import Atom, MolecularGraph
 import re
 from rdkit import Chem, RDLogger
-from group_selfies.constants import POP_SYMBOL, NEGATIVE_RING_SYMBOL, BOND_DIR, INVERT_DIR
+from group_selfies.constants import POP_SYMBOL, NEGATIVE_RING_SYMBOL, BOND_DIR, INVERT_DIR, INDEX_CODE, INDEX_ALPHABET
 from group_selfies.bond_constraints import get_bonding_capacity
 from collections import defaultdict
 
-def _read_index_from_selfies(symbol_iter, n_symbols):
+def _read_index_from_selfies(symbol_iter, n_symbols,index_code = INDEX_CODE):
     index_symbols = []
     for _ in range(n_symbols):
         try:
@@ -53,9 +53,9 @@ def _read_index_from_selfies(symbol_iter, n_symbols):
             index_symbols.append(next_one)
         except StopIteration:
             index_symbols.append(None)
-    return get_index_from_selfies(*index_symbols)
+    return get_index_from_selfies(*index_symbols,index_code=index_code)
 
-def parse_ring_length(symbol_iter, n_symbols):
+def parse_ring_length(symbol_iter, n_symbols,index_code = INDEX_CODE):
     try:
         next_one = next(symbol_iter)
         if next_one == POP_SYMBOL:
@@ -63,13 +63,13 @@ def parse_ring_length(symbol_iter, n_symbols):
         
         negative_ring = False
         if next_one == NEGATIVE_RING_SYMBOL:
-            Q = _read_index_from_selfies(symbol_iter, n_symbols)
+            Q = _read_index_from_selfies(symbol_iter, n_symbols,index_code = index_code)
             if Q is None:
                 return None
             negative_ring = True
         else:
             Q = _read_index_from_selfies(
-                chain([next_one], symbol_iter), n_symbols)
+                chain([next_one], symbol_iter), n_symbols,index_code = index_code)
             if Q is None:
                 return None
         return Q, negative_ring
@@ -129,7 +129,9 @@ def selfies_to_graph_iterative(grammar,
                                 inverse_place=None,
                                 previous_att_idx=None, 
                                 group_atom=None,
-                                verbose=False):
+                                verbose=False,
+                                index_alphabet = INDEX_ALPHABET):
+    index_code = {code: index for index, code in enumerate(index_alphabet)}
     mol = Chem.RWMol()
     stack = [(None, 0, False)]
     while (symbol := next(symbol_iter, _exhausted)) != _exhausted:
@@ -160,7 +162,7 @@ def selfies_to_graph_iterative(grammar,
                     # maybe do this manually instead of using regex
                     remaining = symbol[2:]
                     idx_match = re.search(r'\d+', remaining)
-                    dir_match = re.search(r'[\\/]', remaining)
+                    dir_match = re.search(r'[\\\/]', remaining)
                     order_match = re.search(r'[#\=\-]', remaining)
                     if idx_match:
                         group_idx = int(res := idx_match.group(0))
@@ -252,7 +254,7 @@ def selfies_to_graph_iterative(grammar,
                     else:
                         ring_order, next_state = next_ring_state(ring_type, state)
                         bond_info = (ring_order, stereo)
-                        output = parse_ring_length(symbol_iter, n_symbols=n)
+                        output = parse_ring_length(symbol_iter, n_symbols=n,index_code=index_code)
                         if output is None:
                             # end of string, or pop
                             if not len(stack):
@@ -324,7 +326,7 @@ def selfies_to_graph_iterative(grammar,
             else:
                 # Case 1: Group
                 group = state
-                rel_idx = grammar.get_index_from_selfies(symbol)
+                rel_idx = grammar.get_index_from_selfies(symbol,index_code = index_code)
                 member_idxs, inner_att = additional_info
                 possible_inner_att = find_next_available(inner_att, rel_idx, member_idxs, group.attachment_points)
                 if possible_inner_att is None:
@@ -339,9 +341,9 @@ def selfies_to_graph_iterative(grammar,
             stack.append(new_state)
     return mol
 
-def available_bonds(atom):
+def available_bonds(atom:Chem.Atom):
     atom.UpdatePropertyCache()
-    return get_bonding_capacity(atom.GetSymbol(), atom.GetFormalCharge()) - atom.GetExplicitValence()
+    return get_bonding_capacity(atom.GetSymbol(), atom.GetFormalCharge()) - atom.GetValence(Chem.rdchem.ValenceType.EXPLICIT)
 
 def form_rings_bilocally_iterative(mol, rings, place_from_idx, inverse_place, dummy_counter, group_atom, verbose=False):
     for ridx, lidx, bond_info in rings:
@@ -438,7 +440,7 @@ def form_rings_bilocally_iterative(mol, rings, place_from_idx, inverse_place, du
             latom.GetBonds()[0].SetBondType(bond_types[free])
             ratom.GetBonds()[0].SetBondType(bond_types[free])
             
-def group_decoder(grammar, selfies, verbose=False):
+def group_decoder(grammar, selfies, verbose=False,index_alphabet = INDEX_ALPHABET):
     if not selfies:
         return Chem.Mol()
     try:
@@ -456,7 +458,8 @@ def group_decoder(grammar, selfies, verbose=False):
             place_from_idx=place_from_idx,
             inverse_place=inverse_place,
             verbose=verbose,
-            group_atom=group_atom
+            group_atom=group_atom,
+            index_alphabet=index_alphabet
         )
 
         form_rings_bilocally_iterative(mol, rings, place_from_idx, inverse_place, dummy_counter, group_atom, verbose=verbose)

@@ -1,10 +1,11 @@
+import warnings 
 from group_selfies.group_mol_graph import MolecularGraph
 from group_selfies.grammar_rules import get_selfies_from_index
 from rdkit import Chem
 from group_selfies.constants import ORGANIC_SUBSET, INDEX_ALPHABET
 order2char = {1: '', 2: '=', 3: '#'}
 
-def derive_ring_bond(G, bond, map_idx):
+def derive_ring_bond(G, bond, map_idx,index_alphabet = INDEX_ALPHABET):
     tokens = []
 
     # get indices relative to map_idx
@@ -18,7 +19,7 @@ def derive_ring_bond(G, bond, map_idx):
         # this can occur if making a ring bond out of a group to a branch off the same group
         ring_length = -ring_length
         negative_ring = True
-    length_tokens = get_selfies_from_index(ring_length-1)
+    length_tokens = get_selfies_from_index(ring_length-1,index_alphabet=index_alphabet)
     ring_token = f"[{bond.direc}{order2char[bond.order]}Ring{len(length_tokens)}]"
     tokens.append(ring_token)
     if negative_ring:
@@ -30,7 +31,7 @@ class MutableCounter:
     def __init__(self, i):
         self.i = i
 
-def graph_to_selfies(grammar, G, previous_bond, root, counter=None, map_idx=None): #assume extracted groups are already pointed
+def graph_to_selfies(grammar, G, previous_bond, root, counter=None, map_idx=None,index_alphabet:tuple[str] = INDEX_ALPHABET): #assume extracted groups are already pointed
     derived = []
     curr = root
     # index map; assigns an index to non-group atoms or to groups.
@@ -53,7 +54,7 @@ def graph_to_selfies(grammar, G, previous_bond, root, counter=None, map_idx=None
 
             for i, bond in enumerate(out_bonds):
                 if bond.dst in G.visited:
-                    derived.extend(derive_ring_bond(G, bond, map_idx))
+                    derived.extend(derive_ring_bond(G, bond, map_idx,index_alphabet=index_alphabet))
                     # if this is the last bond and a ring bond
                     if i == len(out_bonds) - 1:
                         return derived
@@ -63,7 +64,7 @@ def graph_to_selfies(grammar, G, previous_bond, root, counter=None, map_idx=None
                     previous_bond = bond
                     curr = bond.dst
                 else:  # branch
-                    branch = graph_to_selfies(grammar, G, bond, bond.dst, counter=counter, map_idx=map_idx)
+                    branch = graph_to_selfies(grammar, G, bond, bond.dst, counter=counter, map_idx=map_idx,index_alphabet=index_alphabet)
                     branch_token = f"[{order2char[bond.order]}Branch]"
                     derived.append(branch_token)
                     derived.extend(branch)
@@ -112,16 +113,16 @@ def graph_to_selfies(grammar, G, previous_bond, root, counter=None, map_idx=None
                 rel_idx = (this_inner_idx - prev_inner_idx) % len(group_obj)
                 prev_inner_idx = this_inner_idx
 
-                derived.extend([get_selfies_from_index(len(INDEX_ALPHABET) - 1)[0], '[pop]']*(rel_idx//(len(INDEX_ALPHABET) - 1)))
-                derived.append(get_selfies_from_index(rel_idx % (len(INDEX_ALPHABET) - 1))[0]) #parse into chunks
+                derived.extend([get_selfies_from_index(len(index_alphabet) - 1,index_alphabet=index_alphabet)[0], '[pop]']*(rel_idx//(len(index_alphabet) - 1)))
+                derived.append(get_selfies_from_index(rel_idx % (len(index_alphabet) - 1),index_alphabet=index_alphabet)[0]) #parse into chunks
                 
                 if bond.dst in G.visited:
                     # making ring bond branch
-                    ring_bond_branch = derive_ring_bond(G, bond, map_idx)
+                    ring_bond_branch = derive_ring_bond(G, bond, map_idx,index_alphabet=index_alphabet)
                     derived.extend(ring_bond_branch)
                 else:
                     # making regular branch
-                    branch = graph_to_selfies(grammar, G, bond, bond.dst, counter=counter, map_idx=map_idx)
+                    branch = graph_to_selfies(grammar, G, bond, bond.dst, counter=counter, map_idx=map_idx,index_alphabet=index_alphabet)
                     derived.extend(branch)
                     
                 derived.append('[pop]')
@@ -154,14 +155,27 @@ def atom_to_selfies(bond, atom):
 
     return "".join(builder)
 
-def group_encoder(grammar, mol, groups, join=True):
+def group_encoder(grammar, mol, groups, join=True,**kwargs):
+    index_alphabet = kwargs.get("index_alphabet",INDEX_ALPHABET)
     try:
         Chem.Kekulize(mol, clearAromaticFlags=True)
         graph = MolecularGraph(mol, groups)
-        group_selfies = graph_to_selfies(grammar, graph, None, 0)
+        group_selfies = graph_to_selfies(grammar, graph, None, 0,index_alphabet=index_alphabet)
         if join:
             group_selfies = ''.join(group_selfies)
         return group_selfies
     except Exception as e:
         print(e)
         raise ValueError('ISSUE WITH MOL', Chem.MolToSmiles(mol))
+
+def safe_smiles_to_gselfies_encoder(smiles:str,grammar,**kwargs)->str:
+    '''Encodes SMILES to GroupSELFIES while returning empty string in case of failure'''
+    try:
+        gselfies = grammar.full_encoder(Chem.MolFromSmiles(smiles),**kwargs)
+    except:
+        try:
+            warnings.warn(f"{smiles} could not be converted to a GroupSELFIES")
+        except:
+            ...
+        gselfies = ""
+    return gselfies 

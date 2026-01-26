@@ -3,7 +3,6 @@ import pickle
 import pytest
 import pandas as pd 
 import rdkit.Chem
-from group_selfies import PROJECT_ROOT
 from group_selfies.group_grammar import GroupGrammar
 
 def roundtrip_checker(group_grammar:GroupGrammar,df,**kwargs):

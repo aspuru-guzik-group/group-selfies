@@ -1,10 +1,17 @@
 import os
+import pathlib
 import pytest 
 import pickle
 import pandas as pd 
 import rdkit.Chem 
-from group_selfies import PROJECT_ROOT, Group 
+from group_selfies import Group 
 from group_selfies.group_grammar import GroupGrammar
+
+PROJECT_ROOT = pathlib.Path(os.path.abspath(__file__)).parent.parent 
+
+@pytest.fixture
+def project_root():
+    return PROJECT_ROOT
 
 @pytest.fixture
 def nonfullerene_path():

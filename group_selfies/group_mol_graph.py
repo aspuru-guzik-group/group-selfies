@@ -4,11 +4,14 @@ import networkx as nx
 from rdkit.Chem.rdchem import BondType as BT
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from rdkit.Chem.PropertyMol import PropertyMol
 from rdkit.Chem.Draw import rdMolDraw2D
 from group_selfies.utils.group_utils import group_parser, mol_to_group_s, pattern_parser, to_smarts, raw_smarts_to_pattern
 from collections import defaultdict
 from group_selfies.constants import BOND_DIR_REV
 import re
+
+Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
 
 class Atom:
     """An atom with associated specifications (e.g. element, isotope, h_count, charge). No chirality for now...
@@ -368,7 +371,6 @@ class Group:
             atom = self.pattern.GetAtomWithIdx(idx)
             self.parent_map[idx] = atom.GetNeighbors()[0].GetIdx()
         self.group_size = self.pattern.GetNumAtoms() - len(self.attachment_points)
-        
         # force pattern and group indices to be in the same order
         mol_clone = Chem.Mol(self.mol)
         Chem.Kekulize(mol_clone)
@@ -376,7 +378,7 @@ class Group:
         if mapping1:
             self.pattern = Chem.RenumberAtoms(self.pattern, mapping1)
         self.graph = MolecularGraph(self.mol, None)
-
+        self.mol = PropertyMol(self.mol)
     def matched_to(self, member_idxs):
         self.member_idxs = list(zip(*member_idxs))[0]
         self.outer_to_inner = dict(member_idxs)
