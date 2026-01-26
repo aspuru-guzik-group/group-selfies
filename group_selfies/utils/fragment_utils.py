@@ -85,10 +85,10 @@ def merge_list(L1, L2, limit=math.inf):
     return None
 
 
-def capacity(atom):
+def capacity(atom:Chem.Atom):
     if atom.GetSymbol() == '*':
         return 0
-    explicit_valence = atom.GetExplicitValence()
+    explicit_valence = atom.GetValence(Chem.rdchem.ValenceType.EXPLICIT)
     for neigh in atom.GetNeighbors():
         if neigh.GetSymbol() == '*':
             explicit_valence -= atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), neigh.GetIdx()).GetValenceContrib(atom)

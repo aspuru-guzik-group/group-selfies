@@ -153,7 +153,7 @@ def set_semantic_constraints(
 
 
 @functools.lru_cache()
-def get_semantic_robust_alphabet() -> Set[str]:
+def get_semantic_robust_alphabet(index_alphabet = INDEX_ALPHABET) -> Set[str]:
     """Returns a subset of all SELFIES symbols that are constrained
     by :mod:`selfies` under the current semantic constraints.
 
@@ -178,7 +178,7 @@ def get_semantic_robust_alphabet() -> Set[str]:
     alphabet_subset.add("[=Branch]")
     alphabet_subset.add("[#Branch]")
 
-    alphabet_subset.update(INDEX_ALPHABET)
+    alphabet_subset.update(index_alphabet)
 
     alphabet_subset.add(POP_SYMBOL)
     alphabet_subset.add(NEGATIVE_RING_SYMBOL)

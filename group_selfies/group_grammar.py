@@ -1,21 +1,22 @@
+import os.path
+import importlib.resources 
 from rdkit import Chem
+import sigtools.specifiers
 from group_selfies.group_mol_graph import MolecularGraph, Group, GroupWrapper
 from group_selfies.constants import INDEX_ALPHABET, POP_SYMBOL, INDEX_CODE
 import numpy as np
 from itertools import chain
 import itertools
-
+import sigtools 
 from group_selfies.utils.group_utils import extract_group_bonds
+from group_selfies.group_encoder import group_encoder
+from group_selfies.group_decoder import group_decoder
 
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    # Try backported to PY<37 `importlib_resources`.
-    import importlib_resources as pkg_resources
+
 
 import group_selfies
-essential = pkg_resources.open_text(group_selfies, 'essential_set.txt')
-cached_essential = None
+
+cached_essential = None 
 rng = np.random.default_rng()
 
 def name_to_token(name, n_points):
@@ -70,11 +71,12 @@ class GroupGrammar:
 
     @classmethod
     def essential_set(cls):
+        essential_path = (importlib.resources.files(group_selfies)/os.path.normpath('essential_set.txt'))
         global cached_essential
         if cached_essential:
             return cached_essential
-        
-        test_gs = [l.strip().split(' ') for l in essential]
+        with open(essential_path,"r") as essential_file:
+            test_gs = [l.strip().split(' ') for l in essential_file]
         vocab_dict = dict([(n, Group(n, s, priority=int(priority[0]) if len(priority) else 0)) for n, s, *priority in test_gs])
         cached_essential = cls(vocab=vocab_dict)
         return cached_essential
@@ -135,28 +137,25 @@ class GroupGrammar:
         return GroupWrapper(self.vocab[name])
 
     def encoder(self, mol, groups, **args):
-        from group_selfies.group_encoder import group_encoder
         return group_encoder(self, mol, groups, **args)
 
     def decoder(self, selfies, **args):
-        from group_selfies.group_decoder import group_decoder
         return group_decoder(self, selfies, **args)
 
     def full_encoder(self, mol, **args):
-        from group_selfies.group_encoder import group_encoder
         groups = self.extract_groups(mol)
         return group_encoder(self, mol, groups, **args)
     
     def pretty_encode(self, gselfi, **args):
         return self.full_encoder(Chem.MolFromSmiles(Chem.MolToSmiles(self.decoder(gselfi))), **args)
 
-    def read_index_from_group_selfies(self, symbol_iter):
+    def read_index_from_group_selfies(self, symbol_iter,index_code:dict = INDEX_CODE):
         try:
             symbol = next(symbol_iter)
             if symbol == POP_SYMBOL:
                 return None
-            if symbol in INDEX_CODE:
-                return INDEX_CODE[symbol]
+            if symbol in index_code.keys():
+                return index_code[symbol]
             else:
                 name = token_to_name(symbol)
                 if name in self.vocab:
@@ -166,9 +165,9 @@ class GroupGrammar:
         except StopIteration:
             return None
     
-    def get_index_from_selfies(self, symbol):
-        if symbol in INDEX_CODE:
-            return INDEX_CODE[symbol]
+    def get_index_from_selfies(self, symbol,index_code:dict = INDEX_CODE):
+        if symbol in index_code.keys():
+            return index_code[symbol]
         else:
             name = token_to_name(symbol)
             if name in self.vocab:

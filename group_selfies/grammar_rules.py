@@ -70,23 +70,23 @@ def next_ring_state(
     return bond_order, next_state
 
 
-def get_index_from_selfies(*symbols: List[str]) -> int:
+def get_index_from_selfies(*symbols: List[str],index_code:dict = INDEX_CODE) -> int:
     index = 0
     for i, c in enumerate(reversed(symbols)):
-        index += INDEX_CODE.get(c, 0) * (len(INDEX_CODE) ** i)
+        index += index_code.get(c, 0) * (len(index_code) ** i)
     return index
 
 
-def get_selfies_from_index(index: int) -> List[str]:
+def get_selfies_from_index(index: int,index_alphabet:tuple[str] = INDEX_ALPHABET) -> List[str]:
     if index < 0:
         raise IndexError()
     elif index == 0:
-        return [INDEX_ALPHABET[0]]
+        return [index_alphabet[0]]
 
     symbols = []
-    base = len(INDEX_ALPHABET)
+    base = len(index_alphabet)
     while index:
-        symbols.append(INDEX_ALPHABET[index % base])
+        symbols.append(index_alphabet[index % base])
         index //= base
     return symbols[::-1]
 
@@ -166,7 +166,7 @@ def _build_atom_cache():
         "[=C]", "[=N+1]", "[=N-1]", "[=N]", "[=O+1]", "[=O]", "[=P+1]",
         "[=P-1]", "[=P]", "[=S+1]", "[=S-1]", "[=S]", "[Br]", "[C+1]", "[C-1]",
         "[C]", "[Cl]", "[F]", "[H]", "[I]", "[N+1]", "[N-1]", "[N]", "[O+1]",
-        "[O-1]", "[O]", "[P+1]", "[P-1]", "[P]", "[S+1]", "[S-1]", "[S]"
+        "[O-1]", "[O]", "[P+1]", "[P-1]", "[P]", "[S+1]", "[S-1]", "[S]",
     ]
 
     for symbol in common_symbols:
@@ -176,9 +176,11 @@ def _build_atom_cache():
 
 def _build_branch_cache():
     cache = dict()
-    for bond_char in ["", "=", "#"]:
-        symbol = "[{}Branch]".format(bond_char)
-        cache[symbol] = bond_char_to_order[bond_char]
+    for dim_idx in ["","1","2"]:
+        for bond_char in ["", "=", "#"]:
+            symbol = f"[{bond_char}Branch{dim_idx}]"
+            cache[symbol] = bond_char_to_order[bond_char]
+
     return cache
 
 

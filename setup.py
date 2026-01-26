@@ -35,5 +35,8 @@ setuptools.setup(
         'tqdm',
         'rdkit',
         'global_chem',
-    ]
+        'sigtools',
+        'pandas'
+    ],
+    extras_require = {'test': ['pytest','matplotlib']}
 )
